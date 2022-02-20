@@ -1,19 +1,19 @@
 package bot
 
 import (
-	"fmt"                       //to print errors
-	"golang-discord-bot/config" //importing our config package which we have created above
+	"fmt" //to print errors
 
-	"github.com/bwmarrin/discordgo" //discordgo package from the repo of bwmarrin .
+	"github.com/bwmarrin/discordgo"   //discordgo package from the repo of bwmarrin .
+	"github.com/qerdcv/muzlag/config" //importing our config package which we have created above
 )
 
 var BotId string
 var goBot *discordgo.Session
 
-func Start() {
+func Start(cfg config.Config) {
 
 	//creating new bot session
-	goBot, err := discordgo.New("Bot " + config.Token)
+	goBot, err := discordgo.New("Bot " + cfg.Token)
 
 	//Handling error
 	if err != nil {
@@ -50,7 +50,7 @@ func messageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 		return
 	}
 	//If we message ping to our bot in our discord it will return us pong .
-	if m.Content == "ping" {
+	if m.Content == "!ping" {
 		_, _ = s.ChannelMessageSend(m.ChannelID, "pong")
 	}
 }
