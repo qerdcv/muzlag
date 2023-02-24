@@ -1,3 +1,9 @@
+# IDE
+.idea
+
+# Localfiles
+localfiles
+
 # Binaries for programs and plugins
 *.exe
 *.exe~
