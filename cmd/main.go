@@ -1,35 +1,38 @@
 package main
 
 import (
-	"log"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 
-	"github.com/qerdcv/muzlag/internal/bot"
+	"github.com/qerdcv/muzlag.go/internal/bot"
+	"github.com/qerdcv/muzlag.go/internal/config"
 )
 
 func main() {
-	b, err := bot.New()
+	cfg, err := config.New(os.Args[1])
 	if err != nil {
-		log.Fatalln(err)
+		panic(err)
 	}
 
-	if err = b.Open(); err != nil {
-		log.Fatalln(err)
+	b, err := bot.New(cfg.BotToken)
+	if err != nil {
+		panic(err)
 	}
 
-	if err = b.RegisterCommands(); err != nil {
-		log.Fatalln(err)
+	fmt.Println("starting bot...")
+	if err = b.Run(); err != nil {
+		panic(err)
 	}
 
-	log.Println("Bot is started")
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
+	<-quit
 
-	sc := make(chan os.Signal, 1)
-	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
-	<-sc
+	fmt.Println("stopping bot...")
 
 	if err = b.Close(); err != nil {
-		log.Fatalln(err)
+		panic(err)
 	}
 }
