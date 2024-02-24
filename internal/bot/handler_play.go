@@ -5,36 +5,26 @@ import (
 	"fmt"
 	"io"
 	"net/url"
-	"strings"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/jonas747/dca"
 	"github.com/kkdai/youtube/v2"
 )
 
-var (
-	ErrNoURLProvided = errors.New("no url provided")
-)
-
-func (b *Bot) playCommand(s *discordgo.Session, m *discordgo.MessageCreate) error {
-	sc := strings.Split(m.Content, " ")
-	if len(sc) < 2 {
-		return ErrNoURLProvided
-	}
-
-	youtubeURL, err := url.Parse(sc[1])
+func (b *Bot) handlePlay(s *discordgo.Session, i *discordgo.InteractionCreate) error {
+	youtubeURL, err := url.Parse(i.ApplicationCommandData().Options[0].StringValue())
 	if err != nil {
 		return fmt.Errorf("url parse: %w", err)
 	}
 
-	g, err := s.State.Guild(m.GuildID)
+	g, err := s.State.Guild(i.GuildID)
 	if err != nil {
 		return fmt.Errorf("state guild: %w", err)
 	}
 
 	var channelID string
 	for _, vs := range g.VoiceStates {
-		if vs.UserID == m.Author.ID {
+		if vs.UserID == i.Interaction.Member.User.ID {
 			if vs.ChannelID == "" {
 				return fmt.Errorf("you need to be in a voice channel")
 			}
@@ -72,6 +62,15 @@ func (b *Bot) playCommand(s *discordgo.Session, m *discordgo.MessageCreate) erro
 	}
 
 	defer vc.Speaking(false)
+
+	if err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: "Playing song " + v.Title,
+		},
+	}); err != nil {
+		return fmt.Errorf("interaction respond: %w", err)
+	}
 
 	enc, err := dca.EncodeMem(audioStream, dca.StdEncodeOptions)
 	if err != nil {

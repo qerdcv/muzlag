@@ -8,31 +8,32 @@ import (
 
 	"github.com/qerdcv/muzlag.go/internal/bot"
 	"github.com/qerdcv/muzlag.go/internal/config"
+	"github.com/qerdcv/muzlag.go/internal/logger"
 )
 
 func main() {
-	cfg, err := config.New(os.Args[1])
+	cfg := config.New()
+	l := logger.NewTextLogger()
+
+	b, err := bot.New(l, cfg.BotToken)
 	if err != nil {
-		panic(err)
+		l.Error("bot new", "err", err)
+		return
 	}
 
-	b, err := bot.New(cfg.BotToken)
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Println("starting bot...")
+	l.Info("starting")
 	if err = b.Run(); err != nil {
-		panic(err)
+		l.Error("bot run", "err", err)
+		return
 	}
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
 	<-quit
 
-	fmt.Println("stopping bot...")
-
+	fmt.Println("shutting down")
 	if err = b.Close(); err != nil {
-		panic(err)
+		l.Error("bot close", "err", err)
+		return
 	}
 }

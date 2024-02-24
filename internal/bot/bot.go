@@ -2,17 +2,27 @@ package bot
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/kkdai/youtube/v2"
+
+	"github.com/qerdcv/muzlag.go/internal/logger"
 )
 
 type Bot struct {
 	session *discordgo.Session
 	client  *youtube.Client
+
+	logger logger.Logger[*slog.Logger]
+
+	commandHandlers map[string]func(session *discordgo.Session, i *discordgo.InteractionCreate) error
 }
 
-func New(token string) (*Bot, error) {
+func New(
+	l logger.Logger[*slog.Logger],
+	token string,
+) (*Bot, error) {
 	dg, err := discordgo.New("Bot " + token)
 	if err != nil {
 		return nil, fmt.Errorf("discordgo new: %w", err)
@@ -21,9 +31,15 @@ func New(token string) (*Bot, error) {
 	b := &Bot{
 		session: dg,
 		client:  new(youtube.Client),
+		logger:  l,
 	}
 
-	dg.AddHandler(b.messageHandler)
+	b.commandHandlers = map[string]func(session *discordgo.Session, i *discordgo.InteractionCreate) error{
+		commandPing: b.handlePing,
+		commandPlay: b.handlePlay,
+	}
+
+	dg.AddHandler(b.commandHandler)
 
 	return b, nil
 }
@@ -31,6 +47,20 @@ func New(token string) (*Bot, error) {
 func (b *Bot) Run() error {
 	if err := b.session.Open(); err != nil {
 		return fmt.Errorf("session open: %w", err)
+	}
+
+	if err := b.registerCommands(); err != nil {
+		return fmt.Errorf("register commands: %w", err)
+	}
+
+	return nil
+}
+
+func (b *Bot) registerCommands() error {
+	for _, v := range commands {
+		if _, err := b.session.ApplicationCommandCreate(b.session.State.User.ID, "", v); err != nil {
+			return fmt.Errorf("session application command create: %w", err)
+		}
 	}
 
 	return nil
