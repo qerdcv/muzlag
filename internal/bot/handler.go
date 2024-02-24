@@ -20,10 +20,16 @@ func (b *Bot) commandHandler(s *discordgo.Session, i *discordgo.InteractionCreat
 	}
 
 	if err != nil {
-		if _, sendErr := s.ChannelMessageSend(
-			i.ChannelID,
-			fmt.Sprintf("Error while handling command: %s", err.Error())); sendErr != nil {
-			panic(err.Error())
+		if sendErr := s.InteractionRespond(
+			i.Interaction,
+			&discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Content: fmt.Sprintf("Error while handling command: %s", err.Error()),
+				},
+			},
+		); sendErr != nil {
+			panic(sendErr.Error())
 		}
 	}
 

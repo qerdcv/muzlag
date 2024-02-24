@@ -1,4 +1,4 @@
-package bot
+package handler
 
 import (
 	"fmt"
@@ -6,7 +6,13 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-func (b *Bot) handlePing(s *discordgo.Session, i *discordgo.InteractionCreate) error {
+type HealthHandler struct{}
+
+func NewHealthHandler() *HealthHandler {
+	return new(HealthHandler)
+}
+
+func (h *HealthHandler) Ping(s *discordgo.Session, i *discordgo.InteractionCreate) error {
 	if err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{

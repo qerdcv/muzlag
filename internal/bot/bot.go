@@ -7,6 +7,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 	"github.com/kkdai/youtube/v2"
 
+	"github.com/qerdcv/muzlag.go/internal/bot/handler"
 	"github.com/qerdcv/muzlag.go/internal/logger"
 )
 
@@ -22,6 +23,8 @@ type Bot struct {
 func New(
 	l logger.Logger[*slog.Logger],
 	token string,
+	healthHandler *handler.HealthHandler,
+	playerHandler *handler.PlayerHandler,
 ) (*Bot, error) {
 	dg, err := discordgo.New("Bot " + token)
 	if err != nil {
@@ -35,8 +38,17 @@ func New(
 	}
 
 	b.commandHandlers = map[string]func(session *discordgo.Session, i *discordgo.InteractionCreate) error{
-		commandPing: b.handlePing,
-		commandPlay: b.handlePlay,
+		// health
+		commandPing: healthHandler.Ping,
+		// ======
+
+		// player
+		commandPlay:   playerHandler.Play,
+		commandStop:   playerHandler.Stop,
+		commandPause:  playerHandler.Pause,
+		commandResume: playerHandler.Resume,
+		commandSkip:   playerHandler.Skip,
+		// ======
 	}
 
 	dg.AddHandler(b.commandHandler)

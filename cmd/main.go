@@ -7,6 +7,8 @@ import (
 	"syscall"
 
 	"github.com/qerdcv/muzlag.go/internal/bot"
+	"github.com/qerdcv/muzlag.go/internal/bot/handler"
+	"github.com/qerdcv/muzlag.go/internal/bot/player"
 	"github.com/qerdcv/muzlag.go/internal/config"
 	"github.com/qerdcv/muzlag.go/internal/logger"
 )
@@ -15,7 +17,15 @@ func main() {
 	cfg := config.New()
 	l := logger.NewTextLogger()
 
-	b, err := bot.New(l, cfg.BotToken)
+	b, err := bot.New(
+		l,
+		cfg.BotToken,
+		handler.NewHealthHandler(),
+		handler.NewPlayerHandler(
+			l,
+			player.New(),
+		),
+	)
 	if err != nil {
 		l.Error("bot new", "err", err)
 		return
