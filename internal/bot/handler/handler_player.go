@@ -15,12 +15,17 @@ import (
 	"github.com/qerdcv/muzlag.go/internal/logger"
 )
 
+type eventSource struct {
+	voiceChannelID string
+	source         chan string
+}
+
 type PlayerHandler struct {
 	client *youtube.Client
 	logger logger.Logger[*slog.Logger]
 
 	player            *player.Player
-	playerEventSource map[string]chan string
+	playerEventSource map[string]eventSource
 }
 
 func NewPlayerHandler(
@@ -32,7 +37,7 @@ func NewPlayerHandler(
 		logger: logger,
 		player: player,
 
-		playerEventSource: map[string]chan string{},
+		playerEventSource: map[string]eventSource{},
 	}
 }
 
@@ -47,13 +52,30 @@ func (h *PlayerHandler) Play(s *discordgo.Session, i *discordgo.InteractionCreat
 		return fmt.Errorf("resolve ids: %w", err)
 	}
 
-	qID := gID + vcID
-	h.player.AddToQueue(qID, youtubeURL.String())
-	if _, ok := h.playerEventSource[qID]; !ok {
+	es, ok := h.playerEventSource[gID]
+	if !ok {
 		eventStream := make(chan string)
+
 		go h.processAudioQueue(s, gID, i.ChannelID, vcID, eventStream)
-		h.playerEventSource[qID] = eventStream
+
+		es = eventSource{
+			voiceChannelID: vcID,
+			source:         eventStream,
+		}
+
+		h.playerEventSource[gID] = es
 	}
+
+	if es.voiceChannelID != vcID {
+		return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "You must be in the same voice channel as the bot!",
+			},
+		})
+	}
+
+	h.player.AddToQueue(gID, youtubeURL.String())
 
 	if err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
@@ -72,11 +94,8 @@ func (h *PlayerHandler) processAudioQueue(
 	gID, chID, vcID string,
 	eventSource chan string,
 ) {
-
-	qID := gID + vcID
-
 	defer func() {
-		delete(h.playerEventSource, qID)
+		delete(h.playerEventSource, gID)
 		close(eventSource)
 	}()
 
@@ -96,15 +115,14 @@ func (h *PlayerHandler) processAudioQueue(
 	defer vc.Speaking(false)
 
 outerLoop:
-	for h.player.Next(qID) {
-
-		youtubeURL, err := h.player.PopQueue(qID)
+	for h.player.Next(gID) {
+		youtubeURL, err := h.player.PopQueue(gID)
 		if err != nil && errors.Is(err, player.ErrEmptyQueue) {
 			return
 		}
 
 		audioStream, title, err := h.fetchAudioStream(youtubeURL)
-		if _, err = s.ChannelMessageSend(chID, "Playing song "+title); err != nil {
+		if _, err = s.ChannelMessageSend(chID, fmt.Sprintf("Playing song [%s](%s)", title, youtubeURL)); err != nil {
 			h.logger.Error("channel message", "err", err)
 			return
 		}
@@ -140,7 +158,7 @@ outerLoop:
 			case event := <-eventSource:
 				switch event {
 				case "stop":
-					h.player.CleanQueue(qID)
+					h.player.CleanQueue(gID)
 					cleanup()
 					return
 				case "pause":
@@ -180,9 +198,16 @@ func (h *PlayerHandler) handleEvent(s *discordgo.Session, i *discordgo.Interacti
 		return fmt.Errorf("resolve id: %w", err)
 	}
 
-	qID := gID + vcID
+	if es, ok := h.playerEventSource[gID]; ok {
+		if es.voiceChannelID != vcID {
+			return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Content: "You must be in the same voice channel as the bot!",
+				},
+			})
+		}
 
-	if eventSource, ok := h.playerEventSource[qID]; ok {
 		if err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
@@ -192,7 +217,7 @@ func (h *PlayerHandler) handleEvent(s *discordgo.Session, i *discordgo.Interacti
 			return fmt.Errorf("session interaction respond: %w", err)
 		}
 
-		eventSource <- event
+		es.source <- event
 		return nil
 	}
 

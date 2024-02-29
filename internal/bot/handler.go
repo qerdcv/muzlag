@@ -25,11 +25,12 @@ func (b *Bot) commandHandler(s *discordgo.Session, i *discordgo.InteractionCreat
 			&discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
 				Data: &discordgo.InteractionResponseData{
-					Content: fmt.Sprintf("Error while handling command: %s", err.Error()),
+					Content: fmt.Sprintf("Error while handling command: %s.\n"+
+						"Report an issue: https://github.com/qerdcv/muzlag", err.Error()),
 				},
 			},
 		); sendErr != nil {
-			panic(sendErr.Error())
+			b.logger.Error("interation respond", "err", err)
 		}
 	}
 
