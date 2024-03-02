@@ -39,15 +39,12 @@ func main() {
 
 	errG, ctx := errgroup.WithContext(ctx)
 	l.Info("starting")
-	errG.Go(b.Run)
+	errG.Go(func() error { return b.Run(ctx) })
 	errG.Go(func() error {
 		return metrics.RunMetricsHandler(ctx, l)
 	})
 
-	<-ctx.Done()
-
-	if err = b.Close(); err != nil {
-		l.Error("bot close", "err", err)
-		return
+	if err = errG.Wait(); err != nil {
+		l.Error("error group wait", "err", err)
 	}
 }

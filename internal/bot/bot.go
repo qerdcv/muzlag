@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 
@@ -56,13 +57,19 @@ func New(
 	return b, nil
 }
 
-func (b *Bot) Run() error {
+func (b *Bot) Run(ctx context.Context) error {
 	if err := b.session.Open(); err != nil {
 		return fmt.Errorf("session open: %w", err)
 	}
 
 	if err := b.registerCommands(); err != nil {
 		return fmt.Errorf("register commands: %w", err)
+	}
+
+	<-ctx.Done()
+
+	if err := b.Close(); err != nil {
+		return fmt.Errorf("bot close: %w", err)
 	}
 
 	return nil
