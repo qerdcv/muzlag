@@ -59,6 +59,8 @@ func New(
 }
 
 func (b *Bot) Run(ctx context.Context) error {
+	b.logger.Info("running bot")
+
 	if err := b.session.Open(); err != nil {
 		return fmt.Errorf("session open: %w", err)
 	}
@@ -69,6 +71,7 @@ func (b *Bot) Run(ctx context.Context) error {
 
 	<-ctx.Done()
 
+	b.logger.Info("shutting down bot")
 	if err := b.Close(); err != nil {
 		return fmt.Errorf("bot close: %w", err)
 	}

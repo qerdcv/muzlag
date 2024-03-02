@@ -35,7 +35,8 @@ func main() {
 	}
 
 	ctx := context.Background()
-	signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
+	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
+	defer cancel()
 
 	errG, ctx := errgroup.WithContext(ctx)
 	l.Info("starting")

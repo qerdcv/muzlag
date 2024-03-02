@@ -3,6 +3,7 @@ package metrics
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -23,7 +24,7 @@ func RunMetricsHandler(ctx context.Context, l logger.Logger[*slog.Logger]) error
 	go func() {
 		<-ctx.Done()
 
-		cancelCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		cancelCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
 
 		go func() {
@@ -33,6 +34,7 @@ func RunMetricsHandler(ctx context.Context, l logger.Logger[*slog.Logger]) error
 			}
 		}()
 
+		l.Info("shutting down metrics server")
 		if err := s.Shutdown(cancelCtx); err != nil {
 			l.Error("server shutdown", "err", err)
 		}
@@ -40,7 +42,7 @@ func RunMetricsHandler(ctx context.Context, l logger.Logger[*slog.Logger]) error
 
 	l.Info("running metrics server")
 	if err := s.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		l.Error("metrics listen and serve", "err", err)
+		return fmt.Errorf("server listen and serve: %w", err)
 	}
 
 	return nil
