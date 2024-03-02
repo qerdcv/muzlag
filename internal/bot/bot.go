@@ -43,12 +43,13 @@ func New(
 		commandPing: healthHandler.Ping,
 		// ======
 
-		// player
+		// queue
 		commandPlay:   playerHandler.Play,
 		commandStop:   playerHandler.Stop,
 		commandPause:  playerHandler.Pause,
 		commandResume: playerHandler.Resume,
 		commandSkip:   playerHandler.Skip,
+		commandQueue:  playerHandler.Queue,
 		// ======
 	}
 

@@ -5,12 +5,13 @@ import "github.com/bwmarrin/discordgo"
 const (
 	commandPing = "ping"
 
-	// player
+	// queue
 	commandPlay   = "play"
 	commandStop   = "stop"
 	commandPause  = "pause"
 	commandResume = "resume"
 	commandSkip   = "skip"
+	commandQueue  = "queue"
 	// =====
 )
 
@@ -46,5 +47,9 @@ var commands = []*discordgo.ApplicationCommand{
 	{
 		Name:        commandSkip,
 		Description: "Skips current song in the music queue",
+	},
+	{
+		Name:        commandQueue,
+		Description: "Display current state of the queue",
 	},
 }

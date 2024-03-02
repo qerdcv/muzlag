@@ -11,7 +11,7 @@ import (
 	"github.com/jonas747/dca"
 	"github.com/kkdai/youtube/v2"
 
-	"github.com/qerdcv/muzlag.go/internal/bot/player"
+	"github.com/qerdcv/muzlag.go/internal/bot/queue"
 	"github.com/qerdcv/muzlag.go/internal/logger"
 )
 
@@ -24,18 +24,18 @@ type PlayerHandler struct {
 	client *youtube.Client
 	logger logger.Logger[*slog.Logger]
 
-	player            *player.Player
+	queue             *queue.Queue
 	playerEventSource map[string]eventSource
 }
 
 func NewPlayerHandler(
 	logger logger.Logger[*slog.Logger],
-	player *player.Player,
+	player *queue.Queue,
 ) *PlayerHandler {
 	return &PlayerHandler{
 		client: new(youtube.Client),
 		logger: logger,
-		player: player,
+		queue:  player,
 
 		playerEventSource: map[string]eventSource{},
 	}
@@ -75,7 +75,15 @@ func (h *PlayerHandler) Play(s *discordgo.Session, i *discordgo.InteractionCreat
 		})
 	}
 
-	h.player.AddToQueue(gID, youtubeURL.String())
+	_, title, err := h.fetchAudioStream(youtubeURL.String())
+	if err != nil {
+		return fmt.Errorf("fetch audio stream: %w", err)
+	}
+
+	h.queue.AddToQueue(gID, queue.Item{
+		Title:     title,
+		OriginURL: youtubeURL.String(),
+	})
 
 	if err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
@@ -115,14 +123,14 @@ func (h *PlayerHandler) processAudioQueue(
 	defer vc.Speaking(false)
 
 outerLoop:
-	for h.player.Next(gID) {
-		youtubeURL, err := h.player.PopQueue(gID)
-		if err != nil && errors.Is(err, player.ErrEmptyQueue) {
+	for h.queue.Next(gID) {
+		item, err := h.queue.PopQueue(gID)
+		if err != nil && errors.Is(err, queue.ErrEmptyQueue) {
 			return
 		}
 
-		audioStream, title, err := h.fetchAudioStream(youtubeURL)
-		if _, err = s.ChannelMessageSend(chID, fmt.Sprintf("Playing song [%s](%s)", title, youtubeURL)); err != nil {
+		audioStream, title, err := h.fetchAudioStream(item.OriginURL)
+		if _, err = s.ChannelMessageSend(chID, fmt.Sprintf("Playing song [%s](%s)", title, item.OriginURL)); err != nil {
 			h.logger.Error("channel message", "err", err)
 			return
 		}
@@ -158,7 +166,7 @@ outerLoop:
 			case event := <-eventSource:
 				switch event {
 				case "stop":
-					h.player.CleanQueue(gID)
+					h.queue.CleanQueue(gID)
 					cleanup()
 					return
 				case "pause":
@@ -190,6 +198,34 @@ func (h *PlayerHandler) Resume(s *discordgo.Session, i *discordgo.InteractionCre
 
 func (h *PlayerHandler) Skip(s *discordgo.Session, i *discordgo.InteractionCreate) error {
 	return h.handleEvent(s, i, "skip")
+}
+
+func (h *PlayerHandler) Queue(s *discordgo.Session, i *discordgo.InteractionCreate) error {
+	items, err := h.queue.List(i.GuildID)
+	if err != nil {
+		if errors.Is(err, queue.ErrEmptyQueue) {
+			return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Content: "Queue is empty for now.",
+				},
+			})
+		}
+
+		return fmt.Errorf("queue list: %w", err)
+	}
+
+	result := ""
+	for idx, item := range items {
+		result += fmt.Sprintf("%d. [%s](%s)\n", idx+1, item.Title, item.OriginURL)
+	}
+
+	return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: result,
+		},
+	})
 }
 
 func (h *PlayerHandler) handleEvent(s *discordgo.Session, i *discordgo.InteractionCreate, event string) error {

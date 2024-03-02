@@ -10,7 +10,7 @@ import (
 
 	"github.com/qerdcv/muzlag.go/internal/bot"
 	"github.com/qerdcv/muzlag.go/internal/bot/handler"
-	"github.com/qerdcv/muzlag.go/internal/bot/player"
+	"github.com/qerdcv/muzlag.go/internal/bot/queue"
 	"github.com/qerdcv/muzlag.go/internal/config"
 	"github.com/qerdcv/muzlag.go/internal/logger"
 	"github.com/qerdcv/muzlag.go/internal/metrics"
@@ -26,7 +26,7 @@ func main() {
 		handler.NewHealthHandler(),
 		handler.NewPlayerHandler(
 			l,
-			player.New(),
+			queue.New(),
 		),
 	)
 	if err != nil {
