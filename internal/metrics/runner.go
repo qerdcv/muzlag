@@ -16,7 +16,7 @@ func RunMetricsHandler(ctx context.Context, l logger.Logger[*slog.Logger]) error
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.Handler())
 	s := http.Server{
-		Addr:    "8009",
+		Addr:    ":8009",
 		Handler: mux,
 	}
 
